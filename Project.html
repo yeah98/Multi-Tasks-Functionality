@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body{background-color:#f0f0f0;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.completed{background-color:#8b8989;text-decoration:line-through;color:grey}.container{height:70vh;display:flex;flex-direction:column}.table-wrapper{flex-grow:1;overflow-y:auto;margin-top:20px}.table tbody tr{display:table;width:100%;table-layout:fixed}.table thead,.table tbody{display:table;width:100%;table-layout:fixed}.no-data{text-align:center;color:grey}
+    </style>
+</head>
+<body>
+    <div class="container w-50 bg-white p-4 rounded shadow border-rounded">
+        <h5 class="text-left mb-4" style="border-bottom: 1px solid rgb(28, 192, 241); color: rgb(28, 192, 241);">PHP SIMPLE To Do LIST APP</h5>
+        <div class="d-flex justify-content-center mb-3">
+            <div class="input-group" style="max-width: 400px;">
+                <input type="text" class="form-control" id="taskInput" placeholder="Enter a task">
+                <div class="input-group-append ml-2">
+                    <button class="btn btn-primary" id="addTaskBtn">Add Task</button>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-sm btn-secondary mr-2" id="showPendingBtn">Show Pending</button>
+            <button class="btn btn-sm btn-secondary" id="showAllBtn">Show All</button>
+        </div>
+        
+        <div class="table-wrapper">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Task</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="taskList">
+                    <tr class="no-data">
+                        <td colspan="4">No data available</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const taskInput = document.getElementById('taskInput');
+            const addTaskBtn = document.getElementById('addTaskBtn');
+            const taskList = document.getElementById('taskList');
+            const showPendingBtn = document.getElementById('showPendingBtn');
+            const showAllBtn = document.getElementById('showAllBtn');
+
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+            addTaskBtn.addEventListener('click', addTask);
+            showPendingBtn.addEventListener('click', showPendingTasks);
+            showAllBtn.addEventListener('click', showAllTasks);
+
+            function addTask() {
+                const taskText = taskInput.value.trim();
+                if (taskText && !tasks.find(task => task.text === taskText)) {
+                    tasks.push({ text: taskText, status: 'Pending' });
+                    localStorage.setItem('tasks', JSON.stringify(tasks));
+                    renderTask(taskText, tasks.length, 'Pending');
+                    taskInput.value = '';
+                    checkNoData();
+                }
+            }
+
+            function renderTask(taskText, index, status) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index}</td>
+                    <td>${taskText}</td>
+                    <td>${status}</td>
+                    <td>
+                        <button class="btn btn-success btn-sm mr-2" data-toggle="tooltip" data-placement="top" title="Change Status"><i class="fa-solid fa-check-to-slot"></i></button>
+                        <button class="btn btn-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+
+                const doneBtn = row.querySelector('.btn-success');
+                const deleteBtn = row.querySelector('.btn-danger');
+
+                if (status === 'Done') {
+                    doneBtn.disabled = true;
+                }
+
+                doneBtn.addEventListener('click', () => {
+                    tasks[index - 1].status = 'Done';
+                    localStorage.setItem('tasks', JSON.stringify(tasks));
+                    row.cells[2].textContent = 'Done';
+                    doneBtn.disabled = true;
+                });
+
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm('Are you sure to delete this task?')) {
+                        taskList.removeChild(row);
+                        tasks = tasks.filter((task, i) => i + 1 !== index);
+                        localStorage.setItem('tasks', JSON.stringify(tasks));
+                        updateTaskIndices();
+                        checkNoData();
+                    }
+                });
+
+                taskList.appendChild(row);
+            }
+
+            function updateTaskIndices() {
+                Array.from(taskList.children).forEach((row, index) => {
+                    if (!row.classList.contains('no-data')) {
+                        row.firstChild.textContent = index + 1;
+                    }
+                });
+            }
+
+            function checkNoData() {
+                if (tasks.length === 0) {
+                    if (!taskList.querySelector('.no-data')) {
+                        const noDataRow = document.createElement('tr');
+                        noDataRow.classList.add('no-data');
+                        noDataRow.innerHTML = '<td colspan="4">No data available</td>';
+                        taskList.appendChild(noDataRow);
+                    }
+                } else {
+                    const noDataRow = taskList.querySelector('.no-data');
+                    if (noDataRow) {
+                        taskList.removeChild(noDataRow);
+                    }
+                }
+            }
+
+            function showPendingTasks() {
+                taskList.innerHTML = '';
+                const pendingTasks = tasks.filter(task => task.status === 'Pending');
+                if (pendingTasks.length === 0) {
+                    const noDataRow = document.createElement('tr');
+                    noDataRow.classList.add('no-data');
+                    noDataRow.innerHTML = '<td colspan="4">No pending tasks</td>';
+                    taskList.appendChild(noDataRow);
+                } else {
+                    pendingTasks.forEach((task, index) => renderTask(task.text, index + 1, task.status));
+                }
+            }
+
+            function showAllTasks() {
+                taskList.innerHTML = '';
+                if (tasks.length === 0) {
+                    const noDataRow = document.createElement('tr');
+                    noDataRow.classList.add('no-data');
+                    noDataRow.innerHTML = '<td colspan="4">No data available</td>';
+                    taskList.appendChild(noDataRow);
+                } else {
+                    tasks.forEach((task, index) => renderTask(task.text, index + 1, task.status));
+                }
+            }
+
+            taskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addTask();
+                    e.preventDefault();
+                }
+            });
+
+            tasks.forEach((task, index) => renderTask(task.text, index + 1, task.status));
+            checkNoData();
+        });
+    </script>
+</body>
+</html>
